@@ -13,6 +13,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;  
 import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
@@ -30,10 +31,12 @@ public class K_Means_Euclidean {
 	/*---------------------------------------------------------
 	*class Vector
 	*		A vector, and the distance with the centroid for Euclidean distance.
+	*		String type is used to distinguish the vector "V" or cost function "C".
 	---------------------------------------------------------*/
 	public static class Vector implements WritableComparable<Vector> {
 		public ArrayList<DoubleWritable> value = new ArrayList<DoubleWritable>();
 		public DoubleWritable distance = new DoubleWritable(0);
+		public Text type = new Text();
 		
 		public void set(ArrayList<DoubleWritable> val, double dis){
 			value = new ArrayList<DoubleWritable>(val);
@@ -55,6 +58,7 @@ public class K_Means_Euclidean {
 		public Vector(Vector that){
 			this.value = new ArrayList<DoubleWritable>(that.value);
 			this.distance.set(that.distance.get());
+			this.type.set(that.type.toString());
 		}
 		
 		public double DistanceWith(Vector that){
@@ -74,6 +78,7 @@ public class K_Means_Euclidean {
 			while(it.hasNext()){
 				it.next().readFields(data);
 			}
+			this.type.readFields(data);
         }
 		
         @Override
@@ -83,6 +88,7 @@ public class K_Means_Euclidean {
 			while(it.hasNext()){
 				it.next().write(data);
 			}
+			this.type.write(data);
         }
 		
 		@Override
@@ -99,13 +105,16 @@ public class K_Means_Euclidean {
 		@Override
 		public int compareTo(Vector that) {
 			for(int i = 0 ; i < this.value.size() ; i++){
-				if(this.value.get(i).get() != that.value.get(i).get()){
+				if(this.value.get(i).get() != that.value.get(i).get() && this.type.toString().equals(that.type.toString())){
 					if(this.value.get(i).get() > that.value.get(i).get()){
 						return 1;
 					} else return -1;
 				}
 			}
-			return 0;
+			
+			if(this.type.toString().equals(that.type.toString())) return 0;
+			else if(this.type.toString().equals("V") && that.type.toString().equals("C")) return 1;
+			else if(this.type.toString().equals("C") && that.type.toString().equals("V")) return -1;
 		}
 	}
 
@@ -113,13 +122,16 @@ public class K_Means_Euclidean {
 	*class EuclideanMapper
 	*		Read data to parse a vector, and calculate Euclidean distance 
 	*	with each centroid vector which is read in Mapper.
-	*		Output key is the centroid vector which is closest with the read vector, 
-	*	and output value is the read vector.
+	*		First output key is the centroid vector which is closest with the read vector, 
+	*	and output value is the read vector with distance.
+	*		Second output key is a empty Vector which type is "C", used on cost function, 
+	*	and output value is the read vector with distance.
 	----------------------------------------*/
 	public static class EuclideanMapper 
 		extends Mapper<Object, Text, Vector, Vector>{
 			
 		private Vector keyOut = new Vector();
+		private Vector keyOut2 = new Vector();
 		//private Vector valueOut = new Vector();
 			
 		public void map(Object keyIn, Text valueIn, Context context
@@ -162,9 +174,14 @@ public class K_Means_Euclidean {
 				return;
 			}
 			
-			keyOut.set(centroids[minIndex]);
+			//Output two types: used on cluster and on cost function.
+			keyOut = new Vector(centroids[minIndex]);
+			keyOut.type.set("V");
 			vec.set(dis);
 			context.write(keyOut, vec);
+			
+			keyOut2.type.set("C");
+			context.write(keyOut2, vec);
 		}
 	}
 	
@@ -172,18 +189,61 @@ public class K_Means_Euclidean {
 	*class EuclideanReducer
 	*		Take the vectors in the same cluster to calculate new centroid, 
 	*	return k centroid vectors.
-	*		Output key is the new centroid vector, and output value is null.
+	*		Cluster Output key is the new centroid vector, and output value is null.
+	*		Cost Output key is null, output value is cost function.
 	----------------------------------------*/
 	public static class EuclideanReducer 
-		extends Reducer<IntWritable, IntWritable, IntWritable, DegreeAndDestinationSet> {
+		extends Reducer<Vector, Vector, Vector, Text> {
 		
-		private IntWritable keyOut = new IntWritable();
-		private DegreeAndDestinationSet valueOut = new DegreeAndDestinationSet();
+		private Vector keyOut = new Vector();
+		private Text valueOut = new Text();
 		
-		public void reduce(IntWritable key, Iterable<IntWritable> values, Context context
+		private MultipleOutputs out;
+ 
+		public void setup(Context context) {
+			out = new MultipleOutputs(context);
+		}
+		
+		protected void cleanup(Context context) throws IOException, InterruptedException {
+			out.close();
+		}
+		
+		public void reduce(Vector key, Iterable<Vector> values, Context context
 						) throws IOException, InterruptedException {
-							
 			
+			Configuration conf = context.getConfiguration();
+			String centOutputPath = conf.getStrings("centOutputPath");
+			String costOutputPath = conf.getStrings("costOutputPath");
+			
+			ArrayList<Vector> valuesArray = new ArrayList<Vector>();
+			Iterator<Vector> it = values.iterator();
+			while(it.hasNext()){
+				Vector v = new Vector(it.next());
+				valuesArray.add(v);
+			}
+			
+			if(key.type.toString().equals("V")){
+				for(int i = 0 ; i < key.value.size() ; i++){
+					double sum = 0;
+					for(int j = 0 ; j < valuesArray.size() ; j++){
+						sum += valuesArray.get(j).values.get(i).get();
+					}
+					sum /= (double)valuesArray.size();
+					
+					DoubleWritable dw = new DoubleWritable(sum);
+					keyOut.value.add(dw);
+				}
+				out.write(keyOut, valueOut, centOutputPath);
+			}
+			else if(key.type.toString().equals("C")){
+				double sum = 0;
+				for(int i = 0 ; i < valuesArray.size() ; i++){
+					double tmp = valuesArray.get(i).distance.get();
+					sum += (tmp * tmp);
+				}
+				valueOut.set(String.valueOf(sum));
+				out.write(keyOut, valueOut, costOutputPath);
+			}
 		}
 	}
 	
@@ -234,16 +294,17 @@ public class K_Means_Euclidean {
 			
 			job1.setMapOutputKeyClass(Vector.class);
 			job1.setMapOutputValueClass(Vector.class);
-			job1.setOutputKeyClass(IntWritable.class);
-			job1.setOutputValueClass(DegreeAndDestinationSet.class);
+			job1.setOutputKeyClass(Vector.class);
+			job1.setOutputValueClass(Text.class);
 			
 			FileInputFormat.addInputPath(job1, new Path(centInputPath));
-			FileOutputFormat.setOutputPath(job1, new Path(centOutputPath + String.valueOf(i)));
+			//FileOutputFormat.setOutputPath(job1, new Path(centOutputPath + String.valueOf(i)));
+			conf.set("centOutputPath", centOutputPath + String.valueOf(i));
+			conf.set("costOutputPath", costOutputPath + String.valueOf(i))
 			
 			job1.waitForCompletion(true);
 			
 			centInputPath = centOutputPath + String.valueOf(i);
-			costOutputPath += String.valueOf(i);
 		}
 		
 		System.exit(1);
