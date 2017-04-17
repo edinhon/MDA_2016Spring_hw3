@@ -22,13 +22,14 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.lang.Math;
 
 
 public class K_Means_Euclidean {
 	
 	/*---------------------------------------------------------
 	*class Vector
-	*		A vector, and the distance with the centroid.
+	*		A vector, and the distance with the centroid for Euclidean distance.
 	---------------------------------------------------------*/
 	public static class Vector implements WritableComparable<Vector> {
 		public ArrayList<DoubleWritable> value = new ArrayList<DoubleWritable>();
@@ -39,13 +40,27 @@ public class K_Means_Euclidean {
 			distance.set(dis);
 		}
 		
+		public void set(ArrayList<DoubleWritable> val){
+			value = new ArrayList<DoubleWritable>(val);
+		}
+		
 		public Vector(){
 			
 		}
 		
 		public Vector(Vector that){
 			this.value = new ArrayList<DoubleWritable>(that.value);
-			this.distance.set(that.distance);
+			this.distance.set(that.distance.get());
+		}
+		
+		public double DistanceWith(Vector that){
+			double sum = 0;
+			for(int i = 0 ; i < value.size() ; i++){
+				double tmp = this.value.get(i).get() - that.value.get(i).get();
+				tmp *= tmp;
+				sum += tmp;
+			}
+			return Math.sqrt(sum);
 		}
 		
 		@Override
@@ -68,11 +83,11 @@ public class K_Means_Euclidean {
 		
 		@Override
 		public String toString() {
-			String str;
+			String str = "";
 			Iterator<DoubleWritable> it = this.value.iterator();
 			str += it.next().get();
 			while(it.hasNext()){
-				str += "," + String.valueOf(it.next().get());
+				str += " " + String.valueOf(it.next().get());
 			}
 			return str;
 		}
@@ -98,15 +113,28 @@ public class K_Means_Euclidean {
 	*	and output value is the read vector.
 	----------------------------------------*/
 	public static class EuclideanMapper 
-		extends Mapper<Object, Text, IntWritable, IntWritable>{
+		extends Mapper<Object, Text, Vector, Vector>{
 			
-		private IntWritable keyOut = new IntWritable();
-		private IntWritable valueOut = new IntWritable();
+		private Vector keyOut = new Vector();
+		private Vector valueOut = new Vector();
 			
 		public void map(Object keyIn, Text valueIn, Context context
 						) throws IOException, InterruptedException {
-							
 			
+			ArrayList<DoubleWritable> vectorValues = new ArrayList<DoubleWritable>();
+			StringTokenizer itr = new StringTokenizer(valueIn.toString(), " \t");
+			while(itr.hasMoreTokens()){
+				DoubleWritable tmp = new DoubleWritable(Double.parseDouble(it.next().get()));
+				vectorValues.add(tmp);
+			}
+			
+			//TODO: Calculate distance and find minima
+			//Configuration conf = context.getConfiguration();
+			//Path centInput = new Path(conf.get("centInput"));
+			
+			keyOut.set(/*Centroid*/);
+			valueOut.set(vectorValues, /*distance*/);
+			context.write(keyOut, valueOut);
 		}
 	}
 	
@@ -137,29 +165,43 @@ public class K_Means_Euclidean {
 	----------------------------------------*/
 	public static void run(String[] args) throws Exception {
 		Configuration conf = new Configuration();
-	
-		if (args.length != 2) {
-			System.err.println("Usage: Euclidean <in> <out>");
+		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+		if (otherArgs.length != 3) {
+			System.err.println("Usage: pagerank <in> <out>");
 			System.exit(2);
 		}
 		
-		//conf.set("numOfPages", "0");
+		centInput = otherArgs[0];
+		centOutput = otherArgs[1];
+		costOutput = otherArgs[2];
 		
-		Job job1 = new Job(conf, "Euclidean");
-		job1.setJarByClass(K_Means_Euclidean.class);
+		//for loop begin
 		
-		job1.setMapperClass(EuclideanMapper.class);
-		job1.setReducerClass(EuclideanReducer.class);
+			//conf.set("numOfPages", "0");
+			
+			Job job1 = new Job(conf, ("Euclidean" + String.valueOf(i)));
+			job1.setJarByClass(K_Means_Euclidean.class);
+			
+			job1.setMapperClass(EuclideanMapper.class);
+			job1.setReducerClass(EuclideanReducer.class);
+			
+			job1.setMapOutputKeyClass(Vector.class);
+			job1.setMapOutputValueClass(Vector.class);
+			job1.setOutputKeyClass(IntWritable.class);
+			job1.setOutputValueClass(DegreeAndDestinationSet.class);
+			
+			FileInputFormat.addInputPath(job1, new Path(args[0]));
+			FileOutputFormat.setOutputPath(job1, new Path(args[1]));
+			
+			job1.waitForCompletion(true);
+			
+			centInput = centOutput;
+			centOutput += String.valueOf(i);
+			costOutput += String.valueOf(i);
 		
-		job1.setMapOutputKeyClass(IntWritable.class);
-		job1.setMapOutputValueClass(IntWritable.class);
-		job1.setOutputKeyClass(IntWritable.class);
-		job1.setOutputValueClass(DegreeAndDestinationSet.class);
+		//for loop end
 		
-		FileInputFormat.addInputPath(job1, new Path(args[0]));
-		FileOutputFormat.setOutputPath(job1, new Path(args[1]));
-		
-		job1.waitForCompletion(true);
+		System.exit(1);
 		//System.exit(job1.waitForCompletion(true) ? 0 : 1);
 		//System.exit(job2.waitForCompletion(true) ? 0 : 1);
     }
