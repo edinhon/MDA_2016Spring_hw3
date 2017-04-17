@@ -44,6 +44,10 @@ public class K_Means_Euclidean {
 			value = new ArrayList<DoubleWritable>(val);
 		}
 		
+		public void set(double dis){
+			distance.set(dis);
+		}
+		
 		public Vector(){
 			
 		}
@@ -116,25 +120,51 @@ public class K_Means_Euclidean {
 		extends Mapper<Object, Text, Vector, Vector>{
 			
 		private Vector keyOut = new Vector();
-		private Vector valueOut = new Vector();
+		//private Vector valueOut = new Vector();
 			
 		public void map(Object keyIn, Text valueIn, Context context
 						) throws IOException, InterruptedException {
 			
+			Vector vec = new Vector();
 			ArrayList<DoubleWritable> vectorValues = new ArrayList<DoubleWritable>();
 			StringTokenizer itr = new StringTokenizer(valueIn.toString(), " \t");
 			while(itr.hasMoreTokens()){
-				DoubleWritable tmp = new DoubleWritable(Double.parseDouble(it.next().get()));
+				DoubleWritable tmp = new DoubleWritable(Double.parseDouble(itr.next().get()));
 				vectorValues.add(tmp);
 			}
+			vec.set(vectorValues);
 			
-			//TODO: Calculate distance and find minima
-			//Configuration conf = context.getConfiguration();
-			//Path centInput = new Path(conf.get("centInput"));
+			//Calculate distance and find minima
+			double min = Double.MAX_VALUE;
+			int minIndex = -1;
+			Vector[] centroids = new Vector()[10];
+			Configuration conf = context.getConfiguration();
+			String[] centroidsStr = conf.getStrings("centInput");
 			
-			keyOut.set(/*Centroid*/);
-			valueOut.set(vectorValues, /*distance*/);
-			context.write(keyOut, valueOut);
+			for(int i = 0 ; i < centroidsStr.length ; i++){
+				ArrayList<DoubleWritable> centValues = new ArrayList<DoubleWritable>();
+				StringTokenizer itr2 = new StringTokenizer(centroidsStr[i], " \t");
+				while(itr2.hasMoreTokens()){
+					DoubleWritable tmp = new DoubleWritable(Double.parseDouble(itr2.next().get()));
+					centValues.add(tmp);
+				}
+				centroids[i].set(centValues);
+				
+				double dis = vec.DistanceWith(centroids[i]);
+				if(dis <= min) {
+					min = dis;
+					minIndex = i;
+				}
+			}
+			
+			if(minIndex == -1) {
+				cout << "There no any centroid or something wrong!\n";
+				return;
+			}
+			
+			keyOut.set(centroids[minIndex]);
+			vec.set(dis);
+			context.write(keyOut, vec);
 		}
 	}
 	
@@ -165,19 +195,36 @@ public class K_Means_Euclidean {
 	----------------------------------------*/
 	public static void run(String[] args) throws Exception {
 		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 		if (otherArgs.length != 3) {
 			System.err.println("Usage: pagerank <in> <out>");
 			System.exit(2);
 		}
 		
-		centInput = otherArgs[0];
-		centOutput = otherArgs[1];
-		costOutput = otherArgs[2];
+		centInputPath = otherArgs[0];
+		centOutputPath = otherArgs[1];
+		costOutputPath = otherArgs[2];
 		
-		//for loop begin
-		
-			//conf.set("numOfPages", "0");
+		for(int i = 0 ; i < 10 ; i++){
+			
+			String centroids[10];
+			Path path = new Path(centInputPath);
+			BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(path)));
+			
+			int j = 0;
+			String line;
+			line = br.readLine();
+			while (line != null){
+				if(j >= 10) {
+					cout << "Too many centroids!\n";
+					break;
+				}
+				centroids[j] = line;
+				j++;
+				line = br.readLine();
+			}
+			conf.setStrings("centInput", centroids);
 			
 			Job job1 = new Job(conf, ("Euclidean" + String.valueOf(i)));
 			job1.setJarByClass(K_Means_Euclidean.class);
@@ -190,16 +237,14 @@ public class K_Means_Euclidean {
 			job1.setOutputKeyClass(IntWritable.class);
 			job1.setOutputValueClass(DegreeAndDestinationSet.class);
 			
-			FileInputFormat.addInputPath(job1, new Path(args[0]));
-			FileOutputFormat.setOutputPath(job1, new Path(args[1]));
+			FileInputFormat.addInputPath(job1, new Path(centInputPath));
+			FileOutputFormat.setOutputPath(job1, new Path(centOutputPath + String.valueOf(i)));
 			
 			job1.waitForCompletion(true);
 			
-			centInput = centOutput;
-			centOutput += String.valueOf(i);
-			costOutput += String.valueOf(i);
-		
-		//for loop end
+			centInputPath = centOutputPath + String.valueOf(i);
+			costOutputPath += String.valueOf(i);
+		}
 		
 		System.exit(1);
 		//System.exit(job1.waitForCompletion(true) ? 0 : 1);
