@@ -38,12 +38,10 @@ public class K_Means_Euclidean {
 	/*---------------------------------------------------------
 	*class Vector
 	*		A vector, and the distance with the centroid for Euclidean distance.
-	*		String type is used to distinguish the vector "V" or cost function "C".
 	---------------------------------------------------------*/
-	public static class Vector implements WritableComparable<Vector> {
+	public static class Vector implements Writable {
 		public IntWritable index = new IntWritable(-1);
 		public ArrayList<DoubleWritable> value = new ArrayList<DoubleWritable>();
-		public ArrayList<DoubleWritable> cent_value = new ArrayList<DoubleWritable>();
 		public DoubleWritable distance = new DoubleWritable(0);
 		
 		public void setIndex(int idx){
@@ -52,10 +50,6 @@ public class K_Means_Euclidean {
 		
 		public void setValue(ArrayList<DoubleWritable> val){
 			value = new ArrayList<DoubleWritable>(val);
-		}
-		
-		public void setCentValue(ArrayList<DoubleWritable> val){
-			cent_value = new ArrayList<DoubleWritable>(val);
 		}
 		
 		public void setDis(double dis){
@@ -69,7 +63,6 @@ public class K_Means_Euclidean {
 		public Vector(Vector that){
 			this.index.set(that.index.get());
 			this.value = new ArrayList<DoubleWritable>(that.value);
-			this.cent_value = new ArrayList<DoubleWritable>(that.cent_value);
 			this.distance.set(that.distance.get());
 		}
 		
@@ -91,10 +84,6 @@ public class K_Means_Euclidean {
 			while(it.hasNext()){
 				it.next().readFields(data);
 			}
-			it = this.cent_value.iterator();
-			while(it.hasNext()){
-				it.next().readFields(data);
-			}
         }
 		
         @Override
@@ -102,10 +91,6 @@ public class K_Means_Euclidean {
 			this.index.write(data);
 			this.distance.write(data);
 			Iterator<DoubleWritable> it = this.value.iterator();
-			while(it.hasNext()){
-				it.next().write(data);
-			}
-			it = this.cent_value.iterator();
 			while(it.hasNext()){
 				it.next().write(data);
 			}
@@ -121,7 +106,7 @@ public class K_Means_Euclidean {
 			}
 			return str;
 		}
-		
+		/*
 		@Override
 		public int compareTo(Vector that) {
 			if(this.index.get() > that.index.get()) return 1;
@@ -131,7 +116,7 @@ public class K_Means_Euclidean {
 		
 		public int hashCode() {
 			return this.index.get();
-		}
+		}*/
 	}
 
 	/*----------------------------------------
@@ -146,8 +131,8 @@ public class K_Means_Euclidean {
 	public static class EuclideanMapper 
 		extends Mapper<Object, Text, IntWritable, Vector>{
 			
-		private Vector keyOut = new Vector();
-		private Vector keyOut2 = new Vector();
+		private IntWritable keyOut = new IntWritable();
+		private IntWritable keyOut2 = new IntWritable();
 		//private Vector valueOut = new Vector();
 			
 		public void map(Object keyIn, Text valueIn, Context context
@@ -179,7 +164,7 @@ public class K_Means_Euclidean {
 					DoubleWritable tmp = new DoubleWritable(Double.parseDouble(itr2.nextToken()));
 					centValues.add(tmp);
 				}
-				centroids[i].setValuecentValues);
+				centroids[i].setValue(centValues);
 				
 				double dis = vec.DistanceWith(centroids[i]);
 				if(dis <= min) {
@@ -194,12 +179,12 @@ public class K_Means_Euclidean {
 			}
 			
 			//Output two types: used on cluster and on cost function.
-			keyOut = new Vector(centroids[minIndex]);
-			keyOut.type.set("V");
 			vec.set(min);
+			
+			keyOut.set(minIndex);
 			context.write(keyOut, vec);
 			
-			keyOut2.type.set("C");
+			keyOut2.set(-1);
 			context.write(keyOut2, vec);
 		}
 	}
