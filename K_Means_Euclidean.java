@@ -40,14 +40,9 @@ public class K_Means_Euclidean {
 	*		A vector, and the distance with the centroid for Euclidean distance.
 	---------------------------------------------------------*/
 	public static class Vector implements Writable {
-		//public IntWritable index = new IntWritable(-1);
 		public ArrayList<DoubleWritable> value = new ArrayList<DoubleWritable>();
 		public DoubleWritable distance = new DoubleWritable(0);
-		/*
-		public void setIndex(int idx){
-			index.set(idx);
-		}
-		*/
+		
 		public void setValue(ArrayList<DoubleWritable> val){
 			value = new ArrayList<DoubleWritable>(val);
 		}
@@ -61,7 +56,6 @@ public class K_Means_Euclidean {
 		}
 		
 		public Vector(Vector that){
-			//this.index.set(that.index.get());
 			this.value = new ArrayList<DoubleWritable>(that.value);
 			this.distance.set(that.distance.get());
 		}
@@ -78,45 +72,32 @@ public class K_Means_Euclidean {
 		
 		@Override
         public void readFields(DataInput data) throws IOException {
-			//this.index.readFields(data);
-            this.distance.readFields(data);
 			Iterator<DoubleWritable> it = this.value.iterator();
 			while(it.hasNext()){
 				it.next().readFields(data);
 			}
+			this.distance.readFields(data);
         }
 		
         @Override
 		public void write(DataOutput data) throws IOException {
-			//this.index.write(data);
-			this.distance.write(data);
 			Iterator<DoubleWritable> it = this.value.iterator();
 			while(it.hasNext()){
 				it.next().write(data);
 			}
+			this.distance.write(data);
         }
 		
 		@Override
 		public String toString() {
 			String str = "";
 			Iterator<DoubleWritable> it = this.value.iterator();
-			if(it.hasNext()) str += it.next().get();
+			if(it.hasNext()) str += String.valueOf(it.next().get());
 			while(it.hasNext()){
 				str += " " + String.valueOf(it.next().get());
 			}
 			return str;
 		}
-		/*
-		@Override
-		public int compareTo(Vector that) {
-			if(this.index.get() > that.index.get()) return 1;
-			else if(this.index.get() == that.index.get()) return 0;
-			else if(this.index.get() < that.index.get()) return -1;
-		}
-		
-		public int hashCode() {
-			return this.index.get();
-		}*/
 	}
 
 	/*----------------------------------------
@@ -133,7 +114,7 @@ public class K_Means_Euclidean {
 			
 		private IntWritable keyOut = new IntWritable();
 		private IntWritable keyOut2 = new IntWritable();
-		//private Vector valueOut = new Vector();
+		private Vector valueOut = new Vector();
 			
 		public void map(Object keyIn, Text valueIn, Context context
 						) throws IOException, InterruptedException {
@@ -181,11 +162,15 @@ public class K_Means_Euclidean {
 			//Output two types: used on cluster and on cost function.
 			vec.setDis(min);
 			
+			valueOut = new Vector(vec);
+			
 			keyOut.set(minIndex);
-			context.write(keyOut, vec);
+			context.write(keyOut, valueOut);
 			
 			keyOut2.set(-1);
-			context.write(keyOut2, vec);
+			context.write(keyOut2, valueOut);
+			
+			System.out.println(valueOut.toString());
 		}
 	}
 	
@@ -224,22 +209,29 @@ public class K_Means_Euclidean {
 			ArrayList<Vector> valuesArray = new ArrayList<Vector>();
 			Iterator<Vector> it = values.iterator();
 			while(it.hasNext()){
-				Vector v = new Vector(it.next());
-				valuesArray.add(v);
+				//Vector v = new Vector(it.next());
+				//valuesArray.add(v);
+				System.out.println(it.next().toString());
+				//System.out.println(v.toString());
 			}
-			
+			/*
 			if(key.get() != -1){
+				System.out.println("Hi Im here");
+				System.out.println(String.valueOf(valuesArray.get(0).value.size()));
 				for(int i = 0 ; i < valuesArray.get(0).value.size() ; i++){
+					System.out.println("Hi Im here");
 					double sum = 0;
 					for(int j = 0 ; j < valuesArray.size() ; j++){
 						sum += valuesArray.get(j).value.get(i).get();
 					}
 					sum /= (double)valuesArray.size();
 					
-					DoubleWritable dw = new DoubleWritable(sum);
+					DoubleWritable dw = new DoubleWritable();
+					dw.set(sum);
 					valueOut.value.add(dw);
 				}
-				out.write(keyOut, valueOut, centOutputPath+"/");
+				keyOut.set("");
+				out.write(keyOut, valueOut, centOutputPath+"/cent");
 			}
 			//Cost function
 			else if(key.get() == -1){
@@ -249,8 +241,9 @@ public class K_Means_Euclidean {
 					sum += (tmp * tmp);
 				}
 				keyOut.set(String.valueOf(sum));
-				out.write(keyOut, valueOut, costOutputPath+"/");
-			}
+				valueOut = new Vector();
+				out.write(keyOut, valueOut, costOutputPath+"/cost");
+			}*/
 		}
 	}
 	
