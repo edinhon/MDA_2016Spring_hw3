@@ -197,7 +197,7 @@ public class K_Means_Euclidean {
 	*		Cost Output key is null, output value is cost function.
 	----------------------------------------*/
 	public static class EuclideanReducer 
-		extends Reducer<Vector, Vector, Vector, Text> {
+		extends Reducer<IntWritable, Vector, Vector, Text> {
 		
 		private Vector keyOut = new Vector();
 		private Text valueOut = new Text();
@@ -301,7 +301,7 @@ public class K_Means_Euclidean {
 			job1.setMapperClass(EuclideanMapper.class);
 			job1.setReducerClass(EuclideanReducer.class);
 			
-			job1.setMapOutputKeyClass(Vector.class);
+			job1.setMapOutputKeyClass(IntWritable.class);
 			job1.setMapOutputValueClass(Vector.class);
 			job1.setOutputKeyClass(Vector.class);
 			job1.setOutputValueClass(Text.class);
