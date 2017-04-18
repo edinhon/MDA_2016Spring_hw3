@@ -179,7 +179,7 @@ public class K_Means_Euclidean {
 			}
 			
 			//Output two types: used on cluster and on cost function.
-			vec.set(min);
+			vec.setDis(min);
 			
 			keyOut.set(minIndex);
 			context.write(keyOut, vec);
@@ -191,16 +191,15 @@ public class K_Means_Euclidean {
 	
 	/*----------------------------------------
 	*class EuclideanReducer
-	*		Take the vectors in the same cluster to calculate new centroid, 
-	*	return k centroid vectors.
-	*		Cluster Output key is the new centroid vector, and output value is null.
-	*		Cost Output key is null, output value is cost function.
+	*		Take the vectors in the same cluster to calculate new centroid and cost function.
+	*	Cluster Output key is the new centroid vector, and output value is null. Cost Output 
+	*	key is null, output value is cost function.
 	----------------------------------------*/
 	public static class EuclideanReducer 
 		extends Reducer<IntWritable, Vector, Vector, Text> {
 		
 		private Vector keyOut = new Vector();
-		private Text valueOut = new Text();
+		private Text valueOut = new Text("");
 		
 		private MultipleOutputs<Vector, Text> out;
 
@@ -229,7 +228,7 @@ public class K_Means_Euclidean {
 				valuesArray.add(v);
 			}
 			
-			if(key.type.toString().equals("V")){
+			if(key.get() != -1){
 				for(int i = 0 ; i < key.value.size() ; i++){
 					double sum = 0;
 					for(int j = 0 ; j < valuesArray.size() ; j++){
@@ -242,7 +241,8 @@ public class K_Means_Euclidean {
 				}
 				out.write(keyOut, valueOut, centOutputPath+"/");
 			}
-			else if(key.type.toString().equals("C")){
+			//Cost function
+			else if(key.get() == -1){
 				double sum = 0;
 				for(int i = 0 ; i < valuesArray.size() ; i++){
 					double tmp = valuesArray.get(i).distance.get();
