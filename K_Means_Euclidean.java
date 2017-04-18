@@ -40,14 +40,14 @@ public class K_Means_Euclidean {
 	*		A vector, and the distance with the centroid for Euclidean distance.
 	---------------------------------------------------------*/
 	public static class Vector implements Writable {
-		public IntWritable index = new IntWritable(-1);
+		//public IntWritable index = new IntWritable(-1);
 		public ArrayList<DoubleWritable> value = new ArrayList<DoubleWritable>();
 		public DoubleWritable distance = new DoubleWritable(0);
-		
+		/*
 		public void setIndex(int idx){
 			index.set(idx);
 		}
-		
+		*/
 		public void setValue(ArrayList<DoubleWritable> val){
 			value = new ArrayList<DoubleWritable>(val);
 		}
@@ -61,7 +61,7 @@ public class K_Means_Euclidean {
 		}
 		
 		public Vector(Vector that){
-			this.index.set(that.index.get());
+			//this.index.set(that.index.get());
 			this.value = new ArrayList<DoubleWritable>(that.value);
 			this.distance.set(that.distance.get());
 		}
@@ -78,7 +78,7 @@ public class K_Means_Euclidean {
 		
 		@Override
         public void readFields(DataInput data) throws IOException {
-			this.index.readFields(data);
+			//this.index.readFields(data);
             this.distance.readFields(data);
 			Iterator<DoubleWritable> it = this.value.iterator();
 			while(it.hasNext()){
@@ -88,7 +88,7 @@ public class K_Means_Euclidean {
 		
         @Override
 		public void write(DataOutput data) throws IOException {
-			this.index.write(data);
+			//this.index.write(data);
 			this.distance.write(data);
 			Iterator<DoubleWritable> it = this.value.iterator();
 			while(it.hasNext()){
@@ -196,16 +196,16 @@ public class K_Means_Euclidean {
 	*	key is null, output value is cost function.
 	----------------------------------------*/
 	public static class EuclideanReducer 
-		extends Reducer<IntWritable, Vector, Vector, Text> {
+		extends Reducer<IntWritable, Vector, Text, Vector> {
 		
-		private Vector keyOut = new Vector();
-		private Text valueOut = new Text("");
+		private Text keyOut = new Text("");
+		private Vector valueOut = new Vector();
 		
-		private MultipleOutputs<Vector, Text> out;
+		private MultipleOutputs<Text, Vector> out;
 
 		@Override
 		public void setup(Context context) {
-			out = new MultipleOutputs<Vector, Text>(context);
+			out = new MultipleOutputs<Text, Vector>(context);
 		}
 		
 		@Override
@@ -213,7 +213,7 @@ public class K_Means_Euclidean {
 			out.close();
 		}
 		
-		public void reduce(Vector key, Iterable<Vector> values, Context context
+		public void reduce(IntWritable key, Iterable<Vector> values, Context context
 						) throws IOException, InterruptedException {
 			
 			Configuration conf = context.getConfiguration();
@@ -229,7 +229,7 @@ public class K_Means_Euclidean {
 			}
 			
 			if(key.get() != -1){
-				for(int i = 0 ; i < key.value.size() ; i++){
+				for(int i = 0 ; i < valuesArray.get(0).value.size() ; i++){
 					double sum = 0;
 					for(int j = 0 ; j < valuesArray.size() ; j++){
 						sum += valuesArray.get(j).value.get(i).get();
@@ -237,7 +237,7 @@ public class K_Means_Euclidean {
 					sum /= (double)valuesArray.size();
 					
 					DoubleWritable dw = new DoubleWritable(sum);
-					keyOut.value.add(dw);
+					valueOut.value.add(dw);
 				}
 				out.write(keyOut, valueOut, centOutputPath+"/");
 			}
@@ -248,7 +248,7 @@ public class K_Means_Euclidean {
 					double tmp = valuesArray.get(i).distance.get();
 					sum += (tmp * tmp);
 				}
-				valueOut.set(String.valueOf(sum));
+				keyOut.set(String.valueOf(sum));
 				out.write(keyOut, valueOut, costOutputPath+"/");
 			}
 		}
@@ -303,8 +303,8 @@ public class K_Means_Euclidean {
 			
 			job1.setMapOutputKeyClass(IntWritable.class);
 			job1.setMapOutputValueClass(Vector.class);
-			job1.setOutputKeyClass(Vector.class);
-			job1.setOutputValueClass(Text.class);
+			job1.setOutputKeyClass(Text.class);
+			job1.setOutputValueClass(Vector.class);
 			
 			job1.setInputFormatClass(TextInputFormat.class);
 			//job1.setOutputFormatClass(TextOutputFormat.class);
