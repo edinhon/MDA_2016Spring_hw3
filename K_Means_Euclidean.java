@@ -51,11 +51,6 @@ public class K_Means_Euclidean {
 			distance.set(dis);
 		}
 		
-		public void set(ArrayList<DoubleWritable> val, double dis){
-			value = new ArrayList<DoubleWritable>(val);
-			distance.set(dis);
-		}
-		
 		public Vector(){
 			
 		}
@@ -178,8 +173,6 @@ public class K_Means_Euclidean {
 			
 			keyOut2.set(-1);
 			context.write(keyOut2, valueOut);
-			
-			//System.out.println(valueOut.toString());
 		}
 	}
 	
@@ -210,28 +203,22 @@ public class K_Means_Euclidean {
 		public void reduce(IntWritable key, Iterable<Vector> values, Context context
 						) throws IOException, InterruptedException {
 			
-			/*Configuration conf = context.getConfiguration();
+			Configuration conf = context.getConfiguration();
 			String centOutputPath = conf.get("centOutputPath");
 			String costOutputPath = conf.get("costOutputPath");
-			System.out.println(centOutputPath +"+"+costOutputPath);*/
+			System.out.println(centOutputPath +"+"+costOutputPath);
 			
-			/*ArrayList<Vector> valuesArray = new ArrayList<Vector>();
+			ArrayList<Vector> valuesArray = new ArrayList<Vector>();
 			Iterator<Vector> it = values.iterator();
 			while(it.hasNext()){
-				//Vector v = new Vector(it.next());
-				//valuesArray.add(v);
-				System.out.println(it.next().toString());
+				Vector v = new Vector(it.next());
+				valuesArray.add(v);
+				//System.out.println(it.next().toString());
 				//System.out.println(v.toString());
-			}*/
-			for(Vector v : values){
-				System.out.println(v.toString());
 			}
-			/*
+			
 			if(key.get() != -1){
-				System.out.println("Hi Im here");
-				System.out.println(String.valueOf(valuesArray.get(0).value.size()));
 				for(int i = 0 ; i < valuesArray.get(0).value.size() ; i++){
-					System.out.println("Hi Im here");
 					double sum = 0;
 					for(int j = 0 ; j < valuesArray.size() ; j++){
 						sum += valuesArray.get(j).value.get(i).get();
@@ -255,7 +242,7 @@ public class K_Means_Euclidean {
 				keyOut.set(String.valueOf(sum));
 				valueOut = new Vector();
 				out.write(keyOut, valueOut, costOutputPath+"/cost");
-			}*/
+			}
 		}
 	}
 	
@@ -278,7 +265,7 @@ public class K_Means_Euclidean {
 		String centOutputPath = otherArgs[3];
 		String costOutputPath = otherArgs[4];
 		
-		for(int i = 0 ; i < 1 ; i++){
+		for(int i = 0 ; i < 20 ; i++){
 			
 			String[] centroidsStr = new String[10];
 			Path path = new Path(centInputPath);
