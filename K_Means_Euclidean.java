@@ -218,6 +218,8 @@ public class K_Means_Euclidean {
 			}
 			
 			if(key.get() != -1){
+				keyOut.set("");
+				valueOut = new Vector();
 				for(int i = 0 ; i < valuesArray.get(0).value.size() ; i++){
 					double sum = 0;
 					for(int j = 0 ; j < valuesArray.size() ; j++){
@@ -229,7 +231,6 @@ public class K_Means_Euclidean {
 					dw.set(sum);
 					valueOut.value.add(dw);
 				}
-				keyOut.set("");
 				out.write(keyOut, valueOut, centOutputPath+"/cent");
 			}
 			//Cost function
@@ -284,8 +285,8 @@ public class K_Means_Euclidean {
 				line = br.readLine();
 			}
 			conf.setStrings("centInput", centroidsStr);
-			conf.set("centOutputPath", centOutputPath + String.valueOf(i));
-			conf.set("costOutputPath", costOutputPath + String.valueOf(i));
+			conf.set("centOutputPath", centOutputPath/* + String.valueOf(i)*/);
+			conf.set("costOutputPath", costOutputPath/* + String.valueOf(i)*/);
 			
 			Job job1 = new Job(conf, ("Euclidean" + String.valueOf(i)));
 			job1.setJarByClass(K_Means_Euclidean.class);
@@ -302,11 +303,11 @@ public class K_Means_Euclidean {
 			//job1.setOutputFormatClass(TextOutputFormat.class);
 			LazyOutputFormat.setOutputFormatClass(job1, TextOutputFormat.class);
 			FileInputFormat.addInputPath(job1, new Path(dataInputPath));
-			FileOutputFormat.setOutputPath(job1, new Path(outputPath));
+			FileOutputFormat.setOutputPath(job1, new Path(outputPath + "/" + String.valueOf(i) + "/"));
 			
 			job1.waitForCompletion(true);
 			
-			centInputPath = outputPath + "/" + centOutputPath + String.valueOf(i);
+			centInputPath = outputPath + "/" + String.valueOf(i) + "/" + centOutputPath + "/cent-r-00000";
 		}
 		
 		System.exit(1);
