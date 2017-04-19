@@ -51,6 +51,11 @@ public class K_Means_Euclidean {
 			distance.set(dis);
 		}
 		
+		public void set(ArrayList<DoubleWritable> val, double dis){
+			value = new ArrayList<DoubleWritable>(val);
+			distance.set(dis);
+		}
+		
 		public Vector(){
 			
 		}
@@ -72,15 +77,19 @@ public class K_Means_Euclidean {
 		
 		@Override
         public void readFields(DataInput data) throws IOException {
-			Iterator<DoubleWritable> it = this.value.iterator();
-			while(it.hasNext()){
-				it.next().readFields(data);
+			int size = data.readInt();
+			value = new ArrayList<DoubleWritable>(size);
+			for(int i = 0 ; i < size ; i++){
+				DoubleWritable dw = new DoubleWritable();
+				dw.readFields(data);
+				value.add(dw);
 			}
 			this.distance.readFields(data);
         }
 		
         @Override
 		public void write(DataOutput data) throws IOException {
+			data.writeInt(value.size());
 			Iterator<DoubleWritable> it = this.value.iterator();
 			while(it.hasNext()){
 				it.next().write(data);
@@ -170,7 +179,7 @@ public class K_Means_Euclidean {
 			keyOut2.set(-1);
 			context.write(keyOut2, valueOut);
 			
-			System.out.println(valueOut.toString());
+			//System.out.println(valueOut.toString());
 		}
 	}
 	
@@ -201,18 +210,21 @@ public class K_Means_Euclidean {
 		public void reduce(IntWritable key, Iterable<Vector> values, Context context
 						) throws IOException, InterruptedException {
 			
-			Configuration conf = context.getConfiguration();
+			/*Configuration conf = context.getConfiguration();
 			String centOutputPath = conf.get("centOutputPath");
 			String costOutputPath = conf.get("costOutputPath");
-			System.out.println(centOutputPath +"+"+costOutputPath);
+			System.out.println(centOutputPath +"+"+costOutputPath);*/
 			
-			ArrayList<Vector> valuesArray = new ArrayList<Vector>();
+			/*ArrayList<Vector> valuesArray = new ArrayList<Vector>();
 			Iterator<Vector> it = values.iterator();
 			while(it.hasNext()){
 				//Vector v = new Vector(it.next());
 				//valuesArray.add(v);
 				System.out.println(it.next().toString());
 				//System.out.println(v.toString());
+			}*/
+			for(Vector v : values){
+				System.out.println(v.toString());
 			}
 			/*
 			if(key.get() != -1){
